@@ -64,8 +64,8 @@ impl Boot for Arc<Bootor> {
             //TODO: waiting for servant started with probe,with async sleep temporarily
             sleep(Duration::from_secs(1));
             let target = TcpStream::connect(self.addr.as_str()).await.unwrap();
-            Duplex::new(source, target).start().await;
             close_fd(fd);
+            Duplex::new(source, target).start().await;
             break;
         }
     }
