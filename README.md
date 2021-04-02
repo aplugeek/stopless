@@ -1,9 +1,11 @@
 # Stopless
-A Stopless Manager For Exit On Idle Mode In Cloud Native
+A Stopless Manager For “EXIT ON IDLE” Mode In Cloud Native
 
 ## Design:
 
-TODO
+LOCI: Launch On Connection In
+
+TODO：design arch
 
 ## Usage
 ```
@@ -28,7 +30,7 @@ OPTIONS:
 ```
 ./loci -e localhost:8080 -c ./server
 ```
-### curl loci endpoint
+### Curl loci endpoint
 `curl -I locahost:8080`
 
 ```
