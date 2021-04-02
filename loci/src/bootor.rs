@@ -1,4 +1,5 @@
 use crate::io::Duplex;
+use async_trait::async_trait;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::process::Command;
@@ -10,33 +11,49 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::mpsc::{channel, Receiver, Sender};
 use tokio::time::Duration;
 
-pub struct Context<'a> {
-    pub boot: BootParam<'a>,
+pub struct Context {
+    pub bootor: Arc<Bootor>,
 }
 
-pub struct BootParam<'b> {
-    pub cmd: &'b str,
-    pub addr: &'b str,
+pub struct Bootor {
+    pub cmd: String,
+    pub addr: String,
 }
 
-impl<'b> BootParam<'b> {
-    pub fn new(cmd: &'b str, addr: &'b str) -> Self {
-        BootParam { cmd, addr }
+#[async_trait]
+pub trait Boot {
+    async fn start_loci(&self, fd: RawFd, sender: Sender<()>);
+    async fn start_loci_holder(&self, fd: RawFd, s: Sender<()>, mut r: Receiver<()>);
+}
+
+impl Bootor {
+    pub fn new(cmd: &str, addr: &str) -> Self {
+        Bootor {
+            cmd: cmd.into(),
+            addr: addr.into(),
+        }
     }
 }
 
-impl<'a> Context<'a> {
-    pub fn new(boot: BootParam<'a>) -> Self {
-        Context { boot }
+impl Context {
+    pub fn new(boot: Bootor) -> Self {
+        Context {
+            bootor: Arc::new(boot),
+        }
     }
-    pub async fn start_loci(&'static self, fd: RawFd, sender: Sender<()>) {
+}
+
+#[async_trait]
+impl Boot for Arc<Bootor> {
+    async fn start_loci(&self, fd: RawFd, sender: Sender<()>) {
         info!("Starting loci...");
         let child_fd = dup_fd(fd);
         let std_listener = unsafe { std::net::TcpListener::from_raw_fd(fd) };
         let listener = TcpListener::from_std(std_listener).unwrap();
+        let bp = self.clone();
         for (source, _) in listener.accept().await {
             tokio::spawn(async move {
-                let mut child = Command::new(self.boot.cmd)
+                let mut child = Command::new(bp.cmd.as_str())
                     .env("FD", child_fd.to_string())
                     .spawn()
                     .expect("Start child process error");
@@ -46,20 +63,21 @@ impl<'a> Context<'a> {
             });
             //TODO: waiting for servant started with probe,with async sleep temporarily
             sleep(Duration::from_secs(1));
-            let target = TcpStream::connect(self.boot.addr).await.unwrap();
+            let target = TcpStream::connect(self.addr.as_str()).await.unwrap();
             Duplex::new(source, target).start().await;
             close_fd(fd);
             break;
         }
     }
 
-    pub async fn start_loci_holder(&'static self, fd: RawFd, s: Sender<()>, mut r: Receiver<()>) {
+    async fn start_loci_holder(&self, fd: RawFd, s: Sender<()>, mut r: Receiver<()>) {
         loop {
             r.recv().await;
             let sc = s.clone();
             let standby = dup_fd(fd);
+            let bootor = self.clone();
             tokio::spawn(async move {
-                self.start_loci(standby, sc).await;
+                bootor.start_loci(standby, sc).await;
             });
         }
     }
