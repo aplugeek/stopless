@@ -5,8 +5,6 @@ A Stopless Manager For “EXIT ON IDLE” Mode In Cloud Native
 
 Features include:
 - Launch on connection in
-- L4 forward tcp stream when child process forked
-- Unix domain socket supporting
 - Graceful shutdown server when timer exit
 
 ## Design:
