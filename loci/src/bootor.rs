@@ -1,5 +1,6 @@
 use crate::io::Duplex;
 use async_trait::async_trait;
+use std::convert::TryFrom;
 use std::os::unix::io::FromRawFd;
 use std::os::unix::io::{AsRawFd, RawFd};
 use std::process::Command;
@@ -48,26 +49,18 @@ impl Boot for Arc<Bootor> {
     async fn start_loci(&self, fd: RawFd, sender: Sender<()>) {
         info!("Starting loci...");
         let child_fd = dup_fd(fd);
-        let std_listener = unsafe { std::net::TcpListener::from_raw_fd(fd) };
-        let listener = TcpListener::from_std(std_listener).unwrap();
         let bp = self.clone();
-        for (source, _) in listener.accept().await {
-            tokio::spawn(async move {
-                let mut child = Command::new(bp.cmd.as_str())
-                    .env("FD", child_fd.to_string())
-                    .spawn()
-                    .expect("Start child process error");
-                let _ = child.wait().expect("Failed on wait child");
-                sender.send(()).await;
-                info!("Server has stopped");
-            });
-            //TODO: waiting for servant started with probe,with async sleep temporarily
-            sleep(Duration::from_secs(1));
-            let target = TcpStream::connect(self.addr.as_str()).await.unwrap();
-            close_fd(fd);
-            Duplex::new(source, target).start().await;
-            break;
-        }
+        select_fd(fd);
+        close_fd(fd);
+        tokio::spawn(async move {
+            let mut child = Command::new(bp.cmd.as_str())
+                .env("FD", child_fd.to_string())
+                .spawn()
+                .expect("Start child process error");
+            let _ = child.wait().expect("Failed on wait child");
+            sender.send(()).await;
+            info!("Server has stopped");
+        });
     }
 
     async fn start_loci_holder(&self, fd: RawFd, s: Sender<()>, mut r: Receiver<()>) {
@@ -92,4 +85,10 @@ pub fn close_fd(fd: RawFd) {
     unsafe {
         libc::close(fd);
     }
+}
+
+pub fn select_fd(fd: RawFd) {
+    let mut fd_set = nix::sys::select::FdSet::new();
+    fd_set.insert(fd);
+    nix::sys::select::select(None, Some(&mut fd_set), None, None, None);
 }
