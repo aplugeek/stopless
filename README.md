@@ -1,10 +1,11 @@
 # Stopless
 [![license](https://img.shields.io/github/license/mashape/apistatus.svg)](https://github.com/i-pva/stopless/blob/master/LICENSE)
 
-A Stopless Manager For “EXIT ON IDLE” Mode In Cloud Native
+A Serverless Application Cargo Ship 
 
 Features include:
 - Launch on connection in
+- Exit on idle
 - Graceful shutdown server when timer exit
 
 ## Design:
