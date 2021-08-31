@@ -51,7 +51,7 @@ impl Boot for Arc<Bootor> {
         let child_fd = dup_fd(fd);
         let bp = self.clone();
         select_fd(fd);
-        close_fd(fd);
+        // close_fd(fd);
         tokio::spawn(async move {
             let mut child = Command::new(bp.cmd.as_str())
                 .env("FD", child_fd.to_string())
@@ -67,10 +67,9 @@ impl Boot for Arc<Bootor> {
         loop {
             r.recv().await;
             let sc = s.clone();
-            let standby = dup_fd(fd);
             let bootor = self.clone();
             tokio::spawn(async move {
-                bootor.start_loci(standby, sc).await;
+                bootor.start_loci(fd, sc).await;
             });
         }
     }

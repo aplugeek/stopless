@@ -38,7 +38,7 @@ OPTIONS:
 ./loci -e localhost:8080 -c ./server
 ```
 ### Curl loci endpoint
-`curl -I locahost:8080`
+`curl -I localhost:8080`
 
 ```
 [2021-04-02T04:51:30Z INFO  loci::bootor] Starting loci...

@@ -29,13 +29,12 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     info!("{:?}", ctx.bootor.addr);
     let mut listener = TcpListener::bind(ctx.bootor.addr.as_str()).await.unwrap();
     let fd = listener.as_raw_fd();
-    let standby = dup_fd(fd);
     let (tx, mut rx) = channel::<()>(1);
     let loci_tx = tx.clone();
     tokio::spawn(async move {
         ctx.bootor.start_loci(fd, loci_tx).await;
     });
-    ctx.bootor.start_loci_holder(standby, tx, rx).await;
+    ctx.bootor.start_loci_holder(fd, tx, rx).await;
     Ok(())
 }
 
