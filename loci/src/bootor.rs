@@ -59,6 +59,7 @@ impl Boot for Arc<Bootor> {
                 .expect("Start child process error");
             let _ = child.wait().expect("Failed on wait child");
             sender.send(()).await;
+            close_fd(child_fd);
             info!("Server has stopped");
         });
     }
